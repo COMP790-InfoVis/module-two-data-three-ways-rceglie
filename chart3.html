@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+
+<!-- Load d3.js. -->
+<script src="https://d3js.org/d3.v6.js"></script>
+
+<!-- Create a div where the graph will live -->
+<div id="chart"></div>
+
+<div><a id="link">download link</a></div>
+
+<script>
+  // Set the dimensions and margins of the graph
+  const margin = { top: 50, right: 30, bottom: 50, left: 60 },
+    width = 1250 - margin.left - margin.right,
+    height = 850 - margin.top - margin.bottom;
+
+  const svg = d3
+    .select("#chart")
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+  // Read in the data
+  d3.csv("Teams_D.csv", function (d) {
+    return {
+      khr: +d["K/HR"],
+      win: +d["W%"],
+      hr: +d["HR"],
+      team: d["teamID"],
+      year: d["Year"],
+    };
+  }).then(function (data) {
+    // Add X Scale
+    const x = d3
+      .scaleLinear()
+      .domain([0, d3.max(data, (d) => d.win)])
+      .range([0, width]);
+
+    // Add Y Scale
+    const y = d3
+      .scaleLinear()
+      .domain([0, d3.max(data, (d) => d.khr)])
+      .range([height, 0]);
+
+    const size = d3
+      .scaleLinear()
+      .domain([d3.min(data, (d) => d.hr), d3.max(data, (d) => d.hr)])
+      .range([1, 5]);
+
+    var tooltip = d3
+      .select("#chart")
+      .append("div")
+      .style("position", "absolute")
+      .style("visibility", "hidden");
+
+    // Add axes
+    svg
+      .append("g")
+      .attr("transform", `translate(0, ${height})`)
+      .call(d3.axisBottom(x));
+
+    svg.append("g").call(d3.axisLeft(y));
+
+    svg
+      .append("g")
+      .selectAll("dot")
+      .data(data)
+      .join("circle")
+      .attr("cx", function (d) {
+        return x(d.win);
+      })
+      .attr("cy", function (d) {
+        return y(d.khr);
+      })
+      .attr("r", function (d) {
+        return size(d.hr);
+      })
+      .style("fill", function (d) {
+        return "blue";
+      })
+      .style("stroke", "black")
+      .style("stroke-width", ".25")
+      .on("mouseover", function (e, d) {
+        d3.select(this).attr("r", d3.select(this).attr("r") * 2)
+        return tooltip
+          .style("visibility", "visible")
+          .style("font-weight", "bold")
+          .style("background-color", "white")
+          .html(d.team + " (" + d.year.slice(0, 4) + ") " + d.hr + " HR");
+      })
+      .on("mousemove", function () {
+        return tooltip
+          .style("top", d3.select(this).attr("cy") + "px")
+          .style("left", d3.select(this).attr("cx") + "px");
+      })
+      .on("mouseout", function () {
+        d3.select(this).attr("r", d3.select(this).attr("r") / 2)
+        return tooltip.style("visibility", "hidden");
+      });
+
+    svg
+      .append("text")
+      .attr("x", width / 2)
+      .attr("y", -20)
+      .attr("text-anchor", "middle")
+      .style("font-size", "25px")
+      .style("text-decoration", "underline")
+      .text("Strikeout per Home Run vs Team Win Percentage (Individual Teams)");
+
+    svg
+      .append("text")
+      .attr("class", "label")
+      .style("font-size", "16px")
+      .attr("x", width / 2)
+      .attr("y", height + margin.bottom - 10)
+      .style("text-anchor", "middle")
+      .text("Win Percentage");
+
+    svg
+      .append("text")
+      .attr("class", "label")
+      .style("font-size", "16px")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -height / 2)
+      .attr("y", -margin.left + 20)
+      .style("text-anchor", "middle")
+      .text("Strikout per Home Run (K/HR)");
+
+    const radius = d3.scaleLinear([0, d3.max(data, (d) => d.hr)], [0, 5]);
+
+    const legend = svg
+      .append("g")
+      .attr("fill", "#777")
+      .attr("transform", `translate(${width - 25},${0})`)
+      .attr("text-anchor", "middle")
+      .style("font", "10px sans-serif")
+      .selectAll("g")
+      .data(radius.ticks(4).slice(1))
+      .join("g");
+
+    legend
+      .append("circle")
+      .attr("fill", "blue")
+      .attr("stroke", "black")
+      .attr("cy", (d) => (1 * d) / 3)
+      .attr("cx", (d) => -radius(d))
+      .attr("r", radius);
+
+    legend
+      .append("text")
+      .attr("y", (d) => d / 3 + 3)
+      .attr("x", (d) => radius(d) + 10)
+      .text(radius.tickFormat(4, "s"));
+
+    legend
+      .append("text")
+      .style("font-size", "20px")
+      .attr("x", 5)
+      .attr("y", 15)
+      .style("text-anchor", "middle")
+      .text("HR");
+  });
+</script>
